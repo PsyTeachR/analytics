@@ -1,0 +1,68 @@
+---
+title: "psyTeachR Google Analytics"
+date: "13/10/2021"
+output: 
+  html_document:
+    df_print: kable
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE
+)
+library(tidyverse)
+```
+
+
+```{r}
+# import data
+# files are structured poorly, so search for the full header 
+
+headers <- "Page path + query string and screen class,Views,Users,New users,Views per user,Average engagement time,Unique user scrolls,Event count,Conversions,Total revenue"
+lines <- readLines("data/data-export.csv")
+skip <- grepl(headers, lines, fixed = TRUE) %>% which() - 1
+
+start_date <- gsub("# Start date: ", "", lines[8], fixed = TRUE) %>%
+  lubridate::as_date()
+end_date <- gsub("# End date: ", "", lines[9], fixed = TRUE) %>%
+  lubridate::as_date()
+
+data <- read_csv("data/data-export.csv", 
+                 skip = skip, 
+                 show_col_types = FALSE)
+```
+
+Data from `r start_date` to `r end_date`
+
+
+```{r}
+data2 <- data %>%
+  separate(1, into = c("url", "query"), 
+           sep = "\\?", 
+           fill = "right") %>%
+  separate(url, into = c("base", "book", "page"), 
+           sep = "/", 
+           fill = "right",
+           extra = "merge") %>%
+  select(-base) %>%
+  mutate(book = ifelse(book %in% c("", "index.html"), "/", book))
+```
+
+## Views by book
+
+Users are max_users because the same user could look at multiple pages, so summing them isn't useful unless you divide by the number of pages, but we really want to know an estimate of how may different people in total looked at the book.
+
+```{r}
+data2 %>%
+  group_by(book) %>%
+  summarise(views = sum(Views),
+            max_users = max(Users),
+            pages = n_distinct(page), 
+            total_hours = sum(Views * `Average engagement time`),
+            .groups = "drop") %>%
+  mutate(total_hours = round(total_hours/60/60, 1)) %>%
+  arrange(desc(views))
+```
+
