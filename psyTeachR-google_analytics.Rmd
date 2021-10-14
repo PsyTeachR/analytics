@@ -13,6 +13,9 @@ knitr::opts_chunk$set(
   message = FALSE
 )
 library(tidyverse)
+library(patchwork)
+library(DT)
+theme_set(theme_minimal())
 ```
 
 
@@ -20,25 +23,37 @@ library(tidyverse)
 # import data
 # files are structured poorly, so search for the full header 
 
-headers <- "Page path + query string and screen class,Views,Users,New users,Views per user,Average engagement time,Unique user scrolls,Event count,Conversions,Total revenue"
-lines <- readLines("data/data-export.csv")
-skip <- grepl(headers, lines, fixed = TRUE) %>% which() - 1
+headers <- "Page path + query string and screen class,Hostname,Views,Users,New users,Views per user,Average engagement time,Unique user scrolls,Event count,Conversions,Total revenue"
 
-start_date <- gsub("# Start date: ", "", lines[8], fixed = TRUE) %>%
-  lubridate::as_date()
-end_date <- gsub("# End date: ", "", lines[9], fixed = TRUE) %>%
-  lubridate::as_date()
+files <- list.files("data", full.names = TRUE)
 
-data <- read_csv("data/data-export.csv", 
-                 skip = skip, 
-                 show_col_types = FALSE)
+datalist <- list()
+
+for (file in files) {
+  lines <- readLines(file)
+  skip <- grepl(headers, lines, fixed = TRUE) %>% which() - 1
+  
+  start_date <- gsub("# Start date: ", "", lines[8], fixed = TRUE) %>%
+    lubridate::as_date()
+  end_date <- gsub("# End date: ", "", lines[9], fixed = TRUE) %>%
+    lubridate::as_date()
+
+  datalist[[file]] <- read_csv(file, 
+                   skip = skip, 
+                   show_col_types = FALSE) %>%
+    mutate(start_date = start_date, end_date = end_date)
+}
+
+data <- do.call(bind_rows, datalist)
+
 ```
 
-Data from `r start_date` to `r end_date`
+Data from `r min(data$start_date)` to `r max(data$end_date)`
 
 
 ```{r}
 data2 <- data %>%
+  filter(grepl("psyteachr", Hostname)) %>%
   separate(1, into = c("url", "query"), 
            sep = "\\?", 
            fill = "right") %>%
@@ -50,19 +65,82 @@ data2 <- data %>%
   mutate(book = ifelse(book %in% c("", "index.html"), "/", book))
 ```
 
-## Views by book
 
-Users are max_users because the same user could look at multiple pages, so summing them isn't useful unless you divide by the number of pages, but we really want to know an estimate of how may different people in total looked at the book.
+## Views by book
 
 ```{r}
 data2 %>%
   group_by(book) %>%
   summarise(views = sum(Views),
-            max_users = max(Users),
             pages = n_distinct(page), 
             total_hours = sum(Views * `Average engagement time`),
             .groups = "drop") %>%
   mutate(total_hours = round(total_hours/60/60, 1)) %>%
-  arrange(desc(views))
+  arrange(desc(views)) %>%
+  DT::datatable()
 ```
+
+
+
+```{r}
+book_by_week <- data2 %>%
+  group_by(book, start_date) %>%
+  summarise(users = sum(Users),
+            views = sum(Views),
+            .groups = "drop")
+
+book_order <- book_by_week %>%
+  group_by(book) %>%
+  summarise(total = sum(views),
+            .groups = "drop") %>%
+  arrange(desc(total)) %>%
+  pull(book)
+
+book_by_week$book <- factor(book_by_week$book, levels = book_order)
+```
+
+
+
+```{r}
+# plotting function
+week_plot <- function(data, col, min = 0, max = 1e5) {
+  data %>%
+    group_by(book) %>%
+    filter(max(.data[[col]]) >= min, max(.data[[col]]) < max) %>%
+    ungroup() %>%
+    ggplot(aes(x = start_date, y = .data[[col]], color = book)) +
+    geom_point() +
+    geom_line() +
+    scale_x_date(name = "",
+                 date_breaks = "1 week",
+                 date_label = "%b-%d") +
+    facet_wrap(~book, ncol = 2) +
+    guides(color = "none")
+}
+```
+
+
+## Views per week
+
+```{r views-per-week, fig.width = 9, fig.height = 14}
+high_views <- week_plot(book_by_week, "views", min = 1000, max = 10000)
+med_views  <- week_plot(book_by_week, "views", min = 100, max = 1000)
+low_views  <- week_plot(book_by_week, "views", min =   0, max = 100)
+
+high_views + med_views + low_views + 
+  plot_layout(ncol = 1, heights = c(3, 3, 5))
+```
+
+## Users per week
+
+```{r users-per-week, fig.width = 9, fig.height = 14}
+high_users <- week_plot(book_by_week, "users", min = 500, max = 10000)
+med_users  <- week_plot(book_by_week, "users", min = 100, max = 500)
+low_users  <- week_plot(book_by_week, "users", min =   0, max = 100)
+
+high_users + med_users + low_users + 
+  plot_layout(ncol = 1, heights = c(3, 3, 5))
+```
+
+
 
