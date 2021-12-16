@@ -3,7 +3,7 @@ title: "psyTeachR Google Analytics"
 date: "13/10/2021"
 output: 
   html_document:
-    df_print: kable
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -16,6 +16,7 @@ library(tidyverse)
 library(patchwork)
 library(DT)
 theme_set(theme_minimal())
+Sys.setenv("VROOM_CONNECTION_SIZE" = 200000)
 ```
 
 
@@ -32,6 +33,8 @@ datalist <- list()
 for (file in files) {
   lines <- readLines(file)
   skip <- grepl(headers, lines, fixed = TRUE) %>% which() - 1
+  
+  lines[grepl("Page path", lines, fixed = TRUE) %>% which()]
   
   start_date <- gsub("# Start date: ", "", lines[8], fixed = TRUE) %>%
     lubridate::as_date()
@@ -123,23 +126,25 @@ week_plot <- function(data, col, min = 0, max = 1e5) {
 ## Views per week
 
 ```{r views-per-week, fig.width = 9, fig.height = 14}
-high_views <- week_plot(book_by_week, "views", min = 1000, max = 10000)
-med_views  <- week_plot(book_by_week, "views", min = 100, max = 1000)
+highest_views <- week_plot(book_by_week, "views", min = 2000, max = 10000)
+high_views <- week_plot(book_by_week, "views", min = 500, max = 2000)
+med_views  <- week_plot(book_by_week, "views", min = 100, max = 500)
 low_views  <- week_plot(book_by_week, "views", min =   0, max = 100)
 
-high_views + med_views + low_views + 
-  plot_layout(ncol = 1, heights = c(3, 3, 5))
+highest_views + high_views + med_views + low_views + 
+  plot_layout(ncol = 1, heights = c(2, 3, 3, 4))
 ```
 
 ## Users per week
 
 ```{r users-per-week, fig.width = 9, fig.height = 14}
-high_users <- week_plot(book_by_week, "users", min = 500, max = 10000)
-med_users  <- week_plot(book_by_week, "users", min = 100, max = 500)
-low_users  <- week_plot(book_by_week, "users", min =   0, max = 100)
+highest_views <- week_plot(book_by_week, "users", min = 2000, max = 10000)
+high_views <- week_plot(book_by_week, "users", min = 500, max = 2000)
+med_views  <- week_plot(book_by_week, "users", min = 100, max = 500)
+low_views  <- week_plot(book_by_week, "users", min =   0, max = 100)
 
-high_users + med_users + low_users + 
-  plot_layout(ncol = 1, heights = c(3, 3, 5))
+highest_views + high_views + med_views + low_views + 
+  plot_layout(ncol = 1, heights = c(1, 3, 3, 5))
 ```
 
 
