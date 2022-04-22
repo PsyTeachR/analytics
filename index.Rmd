@@ -2,10 +2,8 @@
 title: "psyTeachR Google Analytics"
 output: 
   html_document:
-    df_print: paged
-    theme: 
-      version: 4
-      bootswatch: cosmo
+    toc: true
+    toc_float: true
 ---
 
 ```{r setup, include=FALSE}
@@ -171,5 +169,29 @@ invisible({
 
 ```
 
+
+## Non-psyTeachR books
+
+The Google Analytics is in our bookdown template, so it is sometimes used by others who have used our book template or forked our books on github. They are listed below.
+
+```{r}
+data %>%
+  filter(!grepl("psyteachr", Hostname)) %>%
+  separate(1, into = c("url", "query"), 
+           sep = "\\?", 
+           fill = "right") %>%
+  separate(url, into = c("base", "book", "page"), 
+           sep = "/", 
+           fill = "right",
+           extra = "merge") %>%
+  group_by(Hostname, book) %>%
+  summarise(views = sum(Views),
+            pages = n_distinct(page), 
+            total_hours = sum(Views * `Average engagement time`),
+            .groups = "drop") %>%
+  mutate(total_hours = round(total_hours/60/60, 1)) %>%
+  arrange(desc(views)) %>%
+  DT::datatable()
+```
 
 
