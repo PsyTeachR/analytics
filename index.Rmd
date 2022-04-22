@@ -18,6 +18,7 @@ library(patchwork)
 library(DT)
 theme_set(theme_minimal())
 Sys.setenv("VROOM_CONNECTION_SIZE" = 200000)
+options(scipen = 5)
 ```
 
 
@@ -76,19 +77,30 @@ data2 <- data %>%
   filter(!is.na(book))
 ```
 
-
-## Views by book
-
 ```{r}
-data2 %>%
+views_by_book <- data2 %>%
   group_by(book) %>%
   summarise(views = sum(Views),
             pages = n_distinct(page), 
             total_hours = sum(Views * `Average engagement time`),
             .groups = "drop") %>%
   mutate(total_hours = round(total_hours/60/60, 1)) %>%
-  arrange(desc(views)) %>%
-  DT::datatable()
+  arrange(desc(views))
+
+total_views <- sum(views_by_book$views) %>% format(big.mark = ",", )
+th <- sum(views_by_book$total_hours)
+hours <- round(th) %>% format(big.mark = ",", )
+days <-  round(th/24)
+years <- round(th/24/365.25, 1)
+```
+
+PsyTeachR books have had `r total_views` page views. People have spent `r hours` hours on psyTeachR books. That's about `r days` days, or `r years` years!
+
+
+## Views by book
+
+```{r}
+DT::datatable(views_by_book)
 ```
 
 
