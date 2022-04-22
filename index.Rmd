@@ -146,7 +146,7 @@ week_plot <- function(data, col, min = 1, max = 1e5) {
 
 ## Views per week {.tabset}
 
-```{r, results='asis'}
+```{r views-plots, results='asis'}
 invisible({
   book_by_week %>% 
     dplyr::group_split(book) %>% 
@@ -165,7 +165,7 @@ invisible({
 
 ## Users per week  {.tabset}
 
-```{r, results='asis'}
+```{r users-plots, results='asis'}
 invisible({
   book_by_week %>% 
     dplyr::group_split(book) %>% 
