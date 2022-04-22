@@ -1,9 +1,11 @@
 ---
 title: "psyTeachR Google Analytics"
-date: "13/10/2021"
 output: 
   html_document:
     df_print: paged
+    theme: 
+      version: 4
+      bootswatch: cosmo
 ---
 
 ```{r setup, include=FALSE}
@@ -21,8 +23,13 @@ Sys.setenv("VROOM_CONNECTION_SIZE" = 200000)
 ```
 
 
+
 ```{r}
 # import data
+
+# !Remember to set Search to "Page path + query string and screen" 
+# and add "Hostname" before downloading data
+
 # files are structured poorly, so search for the full header 
 
 headers <- "Page path + query string and screen class,Hostname,Views,Users,New users,Views per user,Average engagement time,Unique user scrolls,Event count,Conversions,Total revenue"
@@ -32,6 +39,7 @@ files <- list.files("data", full.names = TRUE)
 datalist <- list()
 
 for (file in files) {
+  #cat(file, "\n")
   lines <- readLines(file)
   skip <- grepl(headers, lines, fixed = TRUE) %>% which() - 1
   
@@ -98,7 +106,7 @@ book_order <- book_by_week %>%
   group_by(book) %>%
   summarise(total = sum(views),
             .groups = "drop") %>%
-  arrange(desc(total)) %>%
+  arrange(book) %>%
   pull(book)
 
 book_by_week$book <- factor(book_by_week$book, levels = book_order)
@@ -120,6 +128,7 @@ week_plot <- function(data, col, min = 1, max = 1e5) {
                  date_breaks = "1 week",
                  date_label = "%b-%d") +
     facet_wrap(~book, ncol = 1) +
+    expand_limits(y=0) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 }
 ```
@@ -144,7 +153,7 @@ invisible({
 ```
 
 
-## Users per week
+## Users per week  {.tabset}
 
 ```{r, results='asis'}
 invisible({
